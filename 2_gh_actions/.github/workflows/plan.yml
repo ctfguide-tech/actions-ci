@@ -1,0 +1,50 @@
+name: "Plan"
+
+on:
+  pull_request:
+
+jobs:
+  terraform-plan:
+    name: "Plan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v2.1.0
+
+      # You could use Snyk here too
+      # Marketplace: https://github.com/marketplace/actions/terraform-security-scan
+      - name: "Setup - Security Scan"
+        uses: triat/terraform-security-scan@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Build AWS Credentials"
+        run: |
+          mkdir -p ~/.aws
+          echo "[default]" > ~/.aws/credentials
+          echo "aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
+          echo "aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
+
+      - name: "CLI"
+        uses: hashicorp/setup-terraform@v1.0.1
+
+      - name: "Terraform Init"
+        run: terraform init -input=false
+
+      - name: "Terraform Plan"
+        id: plan
+        run: terraform plan -input=false -no-color
+
+      - name: "Comment On PR"
+        uses: actions/github-script@0.9.0
+        env:
+          STDOUT: "```${{ steps.plan.outputs.stdout }}```"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: process.env.STDOUT
+            })

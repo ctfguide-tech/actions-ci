@@ -1,0 +1,33 @@
+name: "Apply"
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  terraform-plan:
+    name: "Apply"
+    runs-on: ubuntu-latest
+    steps:
+      # Note the specific version
+      - name: "Checkout"
+        uses: actions/checkout@v2.1.0
+
+      # Documentation: https://docs.aws.amazon.com/ses/latest/DeveloperGuide/create-shared-credentials-file.html
+      - name: "AWS Credentials"
+        run: |
+          mkdir -p ~/.aws
+          echo "[default]" > ~/.aws/credentials
+          echo "aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
+          echo "aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
+
+      - name: "CLI"
+        uses: hashicorp/setup-terraform@v1.0.1
+
+      - name: "Init"
+        run: terraform init -input=false
+
+      # Auto-approve ("yes" input not needed)
+      - name: "Apply"
+        run: terraform apply -input=false -auto-approve
